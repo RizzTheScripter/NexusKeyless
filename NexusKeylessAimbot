@@ -1,0 +1,147 @@
+--[[ 
+    NEXUS ECO - VISUAL FOV UPDATE
+    Update: Visual FOV Circle lebih halus & modern.
+    Fitur Tetap: Hollow Box ESP, Aim Assist (Visible Check), Crosshair (+).
+--]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- // SETTINGS
+local Settings = {
+    AimAssist = false,
+    FullESP = false,
+    ShowFOV = false,
+    ShowCrosshair = true,
+    FOVSize = 150,
+    Smoothness = 0.15,
+    ThemeColor = Color3.fromRGB(0, 255, 127),
+}
+
+-- // DRAWING OBJECTS
+local ESP_Cache = {}
+local FOVCircle = Drawing.new("Circle")
+local CrosshairVertical = Drawing.new("Line")
+local CrosshairHorizontal = Drawing.new("Line")
+
+-- Setup FOV Circle (Gaya Premium)
+FOVCircle.Thickness = 1 -- Garis lebih tipis agar clean
+FOVCircle.NumSides = 100 -- Sangat bulat, tidak patah-patah
+FOVCircle.Filled = false
+FOVCircle.Transparency = 0.5 -- Sedikit transparan agar premium
+FOVCircle.Visible = false
+
+-- Setup Center Crosshair (+)
+CrosshairVertical.Thickness = 2; CrosshairVertical.Transparency = 1; CrosshairVertical.Visible = true
+CrosshairHorizontal.Thickness = 2; CrosshairHorizontal.Transparency = 1; CrosshairHorizontal.Visible = true
+
+-- // UI SETUP
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+ScreenGui.Name = "NexusEco_VisualUpdate"
+ScreenGui.ResetOnSpawn = false
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 300, 0, 380); MainFrame.Position = UDim2.new(0.5, -150, 0.5, -190); MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15); MainFrame.BorderSizePixel = 0; MainFrame.Active = true; MainFrame.Draggable = true 
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+
+local Sidebar = Instance.new("Frame", MainFrame)
+Sidebar.Size = UDim2.new(0, 4, 1, 0); Sidebar.BackgroundColor3 = Settings.ThemeColor; Sidebar.BorderSizePixel = 0
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 10)
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Text = "NEXUS ECO"; Title.Size = UDim2.new(1, -70, 0, 60); Title.Position = UDim2.new(0, 65, 0, 0); Title.BackgroundTransparency = 1; Title.TextColor3 = Color3.fromRGB(255, 255, 255); Title.Font = Enum.Font.GothamBold; Title.TextSize = 18; Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local Container = Instance.new("Frame", MainFrame)
+Container.Size = UDim2.new(1, -40, 1, -80); Container.Position = UDim2.new(0, 25, 0, 75); Container.BackgroundTransparency = 1
+Instance.new("UIListLayout", Container).Padding = UDim.new(0, 12)
+
+-- // FUNCTIONS (Toggle & Vis Check)
+local function AddToggle(name, callback)
+    local Frame = Instance.new("Frame", Container)
+    Frame.Size = UDim2.new(1, 0, 0, 45); Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25); Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+    local Lbl = Instance.new("TextLabel", Frame); Lbl.Text = name; Lbl.Size = UDim2.new(1, -60, 1, 0); Lbl.Position = UDim2.new(0, 12, 0, 0); Lbl.BackgroundTransparency = 1; Lbl.TextColor3 = Color3.fromRGB(200, 200, 200); Lbl.Font = Enum.Font.Gotham; Lbl.TextSize = 13; Lbl.TextXAlignment = Enum.TextXAlignment.Left
+    local Sw = Instance.new("TextButton", Frame); Sw.Size = UDim2.new(0, 36, 0, 18); Sw.Position = UDim2.new(1, -45, 0.5, -9); Sw.BackgroundColor3 = Color3.fromRGB(50, 50, 50); Sw.Text = ""
+    local Knob = Instance.new("Frame", Sw); Knob.Size = UDim2.new(0, 14, 0, 14); Knob.Position = UDim2.new(0, 2, 0.5, -7); Knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255); Instance.new("UICorner", Knob).CornerRadius = UDim.new(1, 0)
+    local active = false
+    Sw.MouseButton1Click:Connect(function()
+        active = not active; callback(active)
+        TweenService:Create(Knob, TweenInfo.new(0.2), {Position = active and UDim2.new(1, -16, 0.5, -7) or UDim2.new(0, 2, 0.5, -7)}):Play()
+        TweenService:Create(Sw, TweenInfo.new(0.2), {BackgroundColor3 = active and Settings.ThemeColor or Color3.fromRGB(50, 50, 50)}):Play()
+    end)
+end
+
+local function IsVisible(part)
+    local params = RaycastParams.new(); params.FilterDescendantsInstances = {LocalPlayer.Character, part.Parent}; params.FilterType = Enum.RaycastFilterType.Exclude
+    local res = workspace:Raycast(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * (part.Position - Camera.CFrame.Position).Magnitude, params)
+    return res == nil
+end
+
+-- // MAIN LOOP
+RunService.RenderStepped:Connect(function(dt)
+    local center = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    
+    -- Update Visual FOV Circle & Crosshair
+    FOVCircle.Visible = Settings.ShowFOV; FOVCircle.Position = center; FOVCircle.Radius = Settings.FOVSize; FOVCircle.Color = Settings.ThemeColor
+    CrosshairVertical.Visible = Settings.ShowCrosshair; CrosshairHorizontal.Visible = Settings.ShowCrosshair
+    CrosshairVertical.Color = Settings.ThemeColor; CrosshairHorizontal.Color = Settings.ThemeColor
+    CrosshairVertical.From = center - Vector2.new(0, 8); CrosshairVertical.To = center + Vector2.new(0, 8)
+    CrosshairHorizontal.From = center - Vector2.new(8, 0); CrosshairHorizontal.To = center + Vector2.new(8, 0)
+
+    -- Aim Assist Logic (Hanya target di dalam FOV)
+    if Settings.AimAssist then
+        local target, dist = nil, Settings.FOVSize
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and p.Character.Humanoid.Health > 0 then
+                local head = p.Character.Head; local pos, on = Camera:WorldToViewportPoint(head.Position)
+                if on and IsVisible(head) then
+                    local mag = (Vector2.new(pos.X, pos.Y) - center).Magnitude
+                    if mag < dist then target = head; dist = mag end
+                end
+            end
+        end
+        if target then
+            local alpha = math.clamp(Settings.Smoothness * dt * 60, 0, 1)
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Position), alpha)
+        end
+    end
+
+    -- Full ESP Loop
+    for p, d in pairs(ESP_Cache) do
+        if Settings.FullESP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character.Humanoid.Health > 0 then
+            local hrp = p.Character.HumanoidRootPart; local pos, vis = Camera:WorldToViewportPoint(hrp.Position)
+            if vis then
+                local h = math.abs(Camera:WorldToViewportPoint(p.Character.Head.Position + Vector3.new(0, 0.5, 0)).Y - Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0)).Y); local w = h * 0.6
+                d.Tracer.Visible = true; d.Tracer.From = Vector2.new(center.X, Camera.ViewportSize.Y); d.Tracer.To = Vector2.new(pos.X, pos.Y + h/2); d.Tracer.Color = Settings.ThemeColor
+                d.Box.Visible = true; d.Box.Filled = false; d.Box.Size = Vector2.new(w, h); d.Box.Position = Vector2.new(pos.X - w/2, pos.Y - h/2); d.Box.Color = Settings.ThemeColor
+                d.Label.Visible = true; d.Label.Position = Vector2.new(pos.X, pos.Y - h/2 - 15); d.Label.Text = p.Name .. " [" .. math.floor(p.Character.Humanoid.Health) .. "%]"; d.Label.Color = Color3.new(1,1,1)
+            else d.Tracer.Visible = false; d.Box.Visible = false; d.Label.Visible = false end
+        else d.Tracer.Visible = false; d.Box.Visible = false; d.Label.Visible = false end
+    end
+end)
+
+-- Player ESP Setup
+local function AddESP(p)
+    ESP_Cache[p] = {Tracer = Drawing.new("Line"), Box = Drawing.new("Square"), Label = Drawing.new("Text")}
+    ESP_Cache[p].Tracer.Thickness = 1; ESP_Cache[p].Box.Thickness = 1.5; ESP_Cache[p].Box.Filled = false; ESP_Cache[p].Label.Size = 14; ESP_Cache[p].Label.Center = true; ESP_Cache[p].Label.Outline = true; ESP_Cache[p].Label.Font = 2
+end
+for _, p in pairs(Players:GetPlayers()) do if p ~= LocalPlayer then AddESP(p) end end
+Players.PlayerAdded:Connect(function(p) AddESP(p) end)
+Players.PlayerRemoving:Connect(function(p) if ESP_Cache[p] then for _,o in pairs(ESP_Cache[p]) do o:Remove() end ESP_Cache[p]=nil end end)
+
+-- UI Buttons
+AddToggle("AIMBOT", function(v) Settings.AimAssist = v end)
+AddToggle("FOV CIRCLE", function(v) Settings.ShowFOV = v end)
+AddToggle("FULL ESP", function(v) Settings.FullESP = v end)
+AddToggle("SHOW CROSSHAIR (+)", function(v) Settings.ShowCrosshair = v end)
+
+-- Color System Sync
+local Hex = Instance.new("TextBox", Container); Hex.Size = UDim2.new(1, 0, 0, 40); Hex.BackgroundColor3 = Color3.fromRGB(20, 20, 20); Hex.PlaceholderText = "HEX COLOR (#00FF7F)"; Hex.TextColor3 = Color3.new(1, 1, 1); Hex.Font = Enum.Font.Gotham; Hex.TextSize = 12; Instance.new("UICorner", Hex).CornerRadius = UDim.new(0, 8)
+Hex.FocusLost:Connect(function() local s, r = pcall(function() return Color3.fromHex(Hex.Text) end) if s then Settings.ThemeColor = r; Sidebar.BackgroundColor3 = r end end)
+
+-- Minimize
+local Min = Instance.new("TextButton", MainFrame); Min.Size = UDim2.new(0, 25, 0, 25); Min.Position = UDim2.new(1, -35, 0, 15); Min.Text = "-"; Min.BackgroundColor3 = Color3.fromRGB(30, 30, 30); Min.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", Min).CornerRadius = UDim.new(1, 0)
+local m = false; Min.MouseButton1Click:Connect(function() m = not m; MainFrame:TweenSize(m and UDim2.new(0, 300, 0, 60) or UDim2.new(0, 300, 0, 380), "Out", "Quart", 0.3, true); Container.Visible = not m end)
